@@ -604,7 +604,21 @@ async function doSave() {
   let existing = entries[editingDate];
   let saveError = null;
 
-   btn.disabled = false;
+  if (existing) {
+    const { error } = await sb.from('diary_entries')
+      .update({ content_html: html })
+      .eq('id', existing.id);
+    if (!error) entries[editingDate].content_html = html;
+    saveError = error;
+  } else {
+    const { data, error } = await sb.from('diary_entries')
+      .insert({ user_id: currentUser.id, date: editingDate, content_html: html })
+      .select().single();
+    if (!error && data) entries[editingDate] = data;
+    saveError = error;
+  }
+
+  btn.disabled = false;
   if (saveError) {
     btn.innerText = '❌ 儲存失敗，請重試';
     btn.style.background = 'linear-gradient(135deg,#e74c3c,#c0392b)';
