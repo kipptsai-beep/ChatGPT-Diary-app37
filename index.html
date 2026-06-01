@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Permissions-Policy" content="camera=*, microphone=*">
+<title>我的日記</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:#fdf6f0;font-family:-apple-system,'Noto Sans TC',system-ui;height:100vh;overflow:hidden;position:fixed;width:100%}
+#app{max-width:480px;margin:0 auto;height:100vh;display:flex;flex-direction:column;background:#fdf6f0}
+
+/* Login */
+.login-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100%;padding:24px;background:linear-gradient(160deg,#fff8f2 0%,#fde8d8 100%)}
+.login-card{background:white;border-radius:32px;padding:36px 28px;width:100%;max-width:340px;box-shadow:0 8px 40px rgba(210,130,60,.12)}
+.login-logo{font-size:64px;text-align:center;margin-bottom:8px}
+.login-title{font-size:22px;font-weight:700;text-align:center;color:#2d1a0e;margin-bottom:4px}
+.login-sub{font-size:13px;color:#a07050;text-align:center;margin-bottom:24px}
+.login-card input{width:100%;padding:14px 18px;margin:8px 0;border:1.5px solid #f0ddd0;border-radius:44px;font-size:15px;background:#fff9f6;outline:none;font-family:inherit}
+.login-card input:focus{border-color:#e8784a}
+.btn-main{width:100%;padding:14px;border-radius:44px;font-size:16px;font-weight:700;border:none;background:linear-gradient(135deg,#e8784a,#d4522a);color:white;cursor:pointer;margin-top:8px}
+.btn-ghost{background:none;border:none;color:#e8784a;font-size:13px;cursor:pointer;padding:8px;display:inline-block;margin-top:8px}
+.msg{font-size:12px;text-align:center;margin-top:8px;padding:4px}
+.msg.err{color:#c0392b}
+.msg.ok{color:#27ae60}
+
+/* Pages */
+.page{display:none;flex-direction:column;flex:1;overflow:hidden}
+.page.active{display:flex}
+
+/* Home */
+.home-header{background:linear-gradient(135deg,#e8784a,#c44a1e);padding:28px 20px 20px;padding-top:max(28px,env(safe-area-inset-top,28px))}
+.home-header h1{font-size:26px;font-weight:800;color:white;letter-spacing:-.5px}
+.home-header p{font-size:12px;color:rgba(255,255,255,.7);margin-top:2px}
+.month-nav{display:flex;align-items:center;background:white;border-radius:20px;margin-top:14px;overflow:hidden}
+.month-nav button{flex:0 0 44px;height:44px;border:none;background:transparent;font-size:20px;cursor:pointer;color:#e8784a}
+.month-nav .month-label{flex:1;text-align:center;font-weight:700;font-size:15px;color:#2d1a0e}
+.calendar-wrap{overflow-y:auto;padding:14px 14px 0}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px}
+.cal-day-name{text-align:center;font-size:11px;font-weight:600;color:#b09080;padding:4px 0}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:12px;cursor:pointer;font-size:13px;font-weight:500;color:#2d1a0e;position:relative;transition:transform .1s}
+.cal-day:active{transform:scale(.9)}
+.cal-day.empty{cursor:default}
+.cal-day.today{background:#fff3ec;color:#e8784a;font-weight:800}
+.cal-day.has-entry::after{content:'';position:absolute;bottom:3px;width:5px;height:5px;border-radius:50%;background:#e8784a}
+.cal-day.today.has-entry::after{background:white}
+.diary-list-section{flex:1;overflow-y:auto;padding:14px}
+.section-title{font-size:12px;font-weight:700;color:#a07050;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
+.entry-card{background:white;border-radius:20px;padding:14px 16px;margin-bottom:10px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.04);display:flex;gap:12px;align-items:flex-start;transition:transform .1s}
+.entry-card:active{transform:scale(.98)}
+.entry-date-badge{background:#fff3ec;border-radius:14px;padding:8px 10px;text-align:center;flex:0 0 48px}
+.entry-date-day{font-size:20px;font-weight:800;color:#e8784a;line-height:1}
+.entry-date-wd{font-size:10px;color:#b09080;margin-top:2px}
+.entry-preview{flex:1;min-width:0}
+.entry-preview-title{font-size:13px;font-weight:700;color:#2d1a0e}
+.entry-preview-text{font-size:12px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.entry-has-photo{font-size:11px;color:#e8784a;margin-top:3px}
+.empty-hint{text-align:center;padding:32px 20px;color:#c5a090;font-size:14px;line-height:1.7}
+
+/* Editor */
+.editor-header{background:white;padding:12px 16px;padding-top:max(12px,env(safe-area-inset-top,12px));display:flex;align-items:center;gap:12px;border-bottom:1px solid #f5ece5}
+.back-btn{font-size:26px;cursor:pointer;color:#e8784a;line-height:1;padding:2px 8px}
+.editor-date-display{flex:1}
+.editor-date-display .edate{font-size:17px;font-weight:800;color:#2d1a0e}
+.editor-date-display .ewd{font-size:12px;color:#a07050}
+.del-entry-btn{background:none;border:1.5px solid #f0ddd0;border-radius:22px;padding:6px 12px;font-size:12px;cursor:pointer;color:#c04040;font-weight:600;white-space:nowrap}
+.editor-action-row{background:white;display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid #f5ece5;align-items:center}
+.tool-btn{background:#fff3ec;border:none;border-radius:22px;padding:7px 14px;font-size:13px;cursor:pointer;color:#c44a1e;font-weight:600;white-space:nowrap}
+.tool-btn:active{background:#fde0d0}
+.save-btn{background:linear-gradient(135deg,#e8784a,#c44a1e);color:white;border:none;border-radius:22px;padding:7px 18px;font-size:13px;font-weight:700;cursor:pointer;margin-left:auto;transition:background .3s}
+.editor-body{flex:1;overflow-y:auto;padding:18px}
+#diaryEditor{min-height:200px;outline:none;font-size:16px;line-height:1.9;color:#2d1a0e;word-break:break-word;caret-color:#e8784a}
+#diaryEditor:empty::before{content:attr(data-placeholder);color:#d0b8a8;pointer-events:none;display:block}
+#diaryEditor img{max-width:100%;border-radius:16px;margin:10px 0;display:block}
+
+/* Date Picker Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:none;align-items:flex-end}
+.modal-bg.active{display:flex}
+.modal-sheet{background:white;border-radius:28px 28px 0 0;width:100%;padding:24px 20px;padding-bottom:max(24px,env(safe-area-inset-bottom,24px))}
+.modal-title{font-size:17px;font-weight:700;color:#2d1a0e;margin-bottom:18px;text-align:center}
+.date-pickers{display:flex;gap:10px;justify-content:center;margin-bottom:20px}
+.date-picker-col{display:flex;flex-direction:column;align-items:center;gap:6px}
+.date-picker-col label{font-size:11px;font-weight:700;color:#a07050;text-transform:uppercase;letter-spacing:.5px}
+.date-picker-col select{padding:10px 14px;border-radius:16px;border:1.5px solid #f0ddd0;font-size:16px;font-weight:600;color:#2d1a0e;background:#fff9f6;font-family:inherit;outline:none}
+.modal-confirm{width:100%;padding:14px;border-radius:44px;background:linear-gradient(135deg,#e8784a,#c44a1e);color:white;font-size:16px;font-weight:700;border:none;cursor:pointer}
+
+/* Camera */
+.fullscreen-camera{position:fixed;inset:0;background:#000;z-index:3000;display:none;}
+.fullscreen-camera.active{display:block;}
+.cam-top{position:absolute;top:0;left:0;right:0;z-index:10;padding:16px 20px;display:flex;justify-content:flex-end;background:rgba(0,0,0,.55);color:white;font-size:28px;}
+#diaryCamVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.cam-bottom{position:absolute;bottom:0;left:0;right:0;z-index:10;text-align:center;background:rgba(0,0,0,.6);padding:20px 20px 40px;}
+.shutter{background:white;width:72px;height:72px;border-radius:50%;margin:0 auto;cursor:pointer;border:4px solid rgba(255,255,255,.5);}
+
+/* Crop */
+.crop-overlay{position:fixed;inset:0;background:#000;z-index:3100;display:none;flex-direction:column}
+.crop-overlay.active{display:flex}
+.crop-area{flex:1;background:#0a0a0a;display:flex;align-items:center;justify-content:center;overflow:auto}
+.crop-btns{padding:20px;display:flex;gap:12px;background:#1c1c1e}
+.btn-crop{padding:14px;border-radius:44px;flex:1;font-weight:700;cursor:pointer;background:#e8784a;color:white;border:none;font-size:15px}
+.btn-cancel-crop{padding:14px;border-radius:44px;flex:1;font-weight:700;cursor:pointer;background:#3a3a3c;color:white;border:none;font-size:15px}
+
+/* Bottom Nav */
+.bottom-nav{background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-top:1px solid #f0e8e0;display:flex;padding:6px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom,8px))}
+.nav-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:6px 0}
+.nav-tab .ni{font-size:22px;opacity:.6}
+.nav-tab .nl{font-size:10px;color:#b09080}
+.nav-tab.active .ni{opacity:1}
+.nav-tab.active .nl{color:#e8784a;font-weight:700}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- LOGIN -->
+<div id="loginPage" class="page active" style="flex:1">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo">📔</div>
+      <div class="login-title">我的日記</div>
+      <div class="login-sub">記錄每一天的故事・雲端同步</div>
+      <div id="loginForm">
+        <input type="email" id="loginEmail" placeholder="電子郵件" autocomplete="email">
+        <input type="password" id="loginPassword" placeholder="密碼">
+        <button class="btn-main" onclick="doLogin()">登入</button>
+        <div style="text-align:center"><button class="btn-ghost" onclick="showReg()">還沒有帳號？立即註冊</button></div>
+        <div id="loginMsg" class="msg"></div>
+      </div>
+      <div id="regForm" style="display:none">
+        <input type="email" id="regEmail" placeholder="電子郵件">
+        <input type="password" id="regPassword" placeholder="密碼（至少6碼）">
+        <button class="btn-main" onclick="doRegister()">註冊</button>
+        <div style="text-align:center"><button class="btn-ghost" onclick="showLogin()">返回登入</button></div>
+        <div id="regMsg" class="msg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="mainApp" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+
+  <!-- 月曆首頁 -->
+  <div id="homePage" class="page active">
+    <div class="home-header">
+      <h1>📔 我的日記</h1>
+      <p id="homeEmail"></p>
+      <button onclick="migrateAllBase64ToR2()" style="margin-top:10px;width:100%;border:none;background:rgba(255,255,255,0.25);color:white;border-radius:14px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;">🚀 搬移圖片到 Cloudflare R2</button>
+      <div class="month-nav">
+        <button onclick="changeMonth(-1)">‹</button>
+        <span class="month-label" id="monthLabel" onclick="openJump()" style="cursor:pointer;text-decoration:underline dotted;user-select:none;" title="點擊快速跳轉">2024年1月</span>
+        <button onclick="changeMonth(1)">›</button>
+      </div>
+    </div>
+    <div class="calendar-wrap">
+      <div class="cal-grid" id="calDayNames"></div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+    <div class="diary-list-section">
+      <div class="section-title">最近日記</div>
+      <div id="recentList"></div>
+    </div>
+    <div class="bottom-nav">
+      <div class="nav-tab active" onclick="navTo(this,'homePage')">
+        <span class="ni">🏠</span><span class="nl">首頁</span>
+      </div>
+      <div class="nav-tab" onclick="openDatePicker()">
+        <span class="ni">📅</span><span class="nl">選日期</span>
+      </div>
+      <div class="nav-tab" onclick="openToday()">
+        <span class="ni">✏️</span><span class="nl">今天</span>
+      </div>
+      <div class="nav-tab" onclick="doSignOut()">
+        <span class="ni">🚪</span><span class="nl">登出</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 日記編輯頁 -->
+  <div id="editorPage" class="page">
+    <div class="editor-header">
+      <span class="back-btn" onclick="backHome()">←</span>
+      <div class="editor-date-display">
+        <div class="edate" id="editorDateLabel"></div>
+        <div class="ewd" id="editorWeekday"></div>
+      </div>
+      <button class="del-entry-btn" onclick="deleteCurrentEntry()">🗑 刪除</button>
+    </div>
+    <div class="editor-action-row">
+      <button class="tool-btn" onclick="diaryCamera()">📸 拍照</button>
+      <button class="tool-btn" onclick="diaryAlbum()">🖼 相簿</button>
+      <button class="save-btn" id="saveBtn" onclick="saveEntry()">💾 儲存</button>
+    </div>
+    <div class="editor-body">
+      <div id="diaryEditor" contenteditable="true"
+           data-placeholder="今天發生了什麼事？把照片和文字都記錄下來吧..."></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Date Picker Modal -->
+<div id="datePickerModal" class="modal-bg" onclick="closeDatePickerBg(event)">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-title">📅 選擇日期前往</div>
+    <div class="date-pickers">
+      <div class="date-picker-col">
+        <label>年</label>
+        <select id="dpYear" onchange="updateDpDays()"></select>
+      </div>
+      <div class="date-picker-col">
+        <label>月</label>
+        <select id="dpMonth" onchange="updateDpDays()"></select>
+      </div>
+      <div class="date-picker-col">
+        <label>日</label>
+        <select id="dpDay"></select>
+      </div>
+    </div>
+    <button class="modal-confirm" onclick="goToPickedDate()">前往這一天 →</button>
+  </div>
+</div>
+
+<!-- Camera -->
+<div id="fullCamera" class="fullscreen-camera">
+  <div class="cam-top"><span onclick="closeDiaryCam()" style="cursor:pointer;padding:8px;">✕</span></div>
+  <video id="diaryCamVideo" autoplay playsinline muted webkit-playsinline
+         x5-video-player-type="h5" x5-video-player-fullscreen="true"></video>
+  <div class="cam-bottom">
+    <div class="shutter" onclick="diaryCaptureAndCrop()"></div>
+    <div style="color:rgba(255,255,255,.6);font-size:12px;margin-top:14px;">點圓形按鈕拍照</div>
+  </div>
+</div>
+
+<!-- Crop -->
+<div id="cropLayer" class="crop-overlay">
+  <div class="crop-area">
+    <img id="cropImage" style="max-width:100%;max-height:70vh;display:block;margin:auto">
+  </div>
+  <div class="crop-btns">
+    <button class="btn-crop" onclick="diaryCropConfirm()">✓ 裁切並插入</button>
+    <button class="btn-cancel-crop" onclick="diaryCropCancel()">取消</button>
+  </div>
+</div>
+
+<script>
+// ===== Supabase =====
+const SUPABASE_URL  = "https://rsuguwhgzyyvhlehpqqu.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzdWd1d2hnenl5dmhsZWhwcXF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5ODU4NDUsImV4cCI6MjA5MzU2MTg0NX0.SX9ixJYye0GNdKvcJ5c3FZAeN9s1B_oX7XnU8xwbkR8";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ===== Cloudflare R2 設定（零流量費！）=====
+const R2_WORKER_URL = 'https://diary-r2-upload.kipptsai.workers.dev';
+const R2_PUBLIC_URL = 'https://pub-d6c8b6e9f235439b8c1707c226054c6f.r2.dev';
+
+// ===== 上傳圖片到 R2（透過 Worker）=====
+async function uploadImage(dataUrl) {
+  // 如果已經是雲端網址，不需要重新上傳
+  if (typeof dataUrl === 'string' && dataUrl.startsWith('http')) return dataUrl;
+
+  // 取得 base64 和 mimeType
+  const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!matches) throw new Error('圖片格式錯誤');
+  const mimeType = matches[1];
+  const base64   = matches[2];
+  const ext      = mimeType.split('/')[1] || 'jpg';
+  const fileName = 'diary/' + Date.now() + '_' + Math.random().toString(36).slice(2) + '.' + ext;
+
+  const res = await fetch(R2_WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageBase64: base64, mimeType, fileName })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error('R2 上傳失敗：' + (err.error || res.status));
+  }
+
+  const json = await res.json();
+  if (!json.url) throw new Error('R2 未回傳網址');
+  console.log('✅ 上傳至 Cloudflare R2:', json.url);
+  return json.url;
+}
+
+// ===== 搬移：把所有日記的 base64 圖片上傳到 R2 =====
+async function migrateAllBase64ToR2() {
+  if (!currentUser) { alert('請先登入'); return; }
+
+  const confirmed = confirm(
+    '🔄 搬移圖片到 Cloudflare R2\n\n' +
+    '這個工具會掃描所有日記，\n' +
+    '把 base64 圖片上傳到 R2，\n' +
+    '釋放 Supabase 空間。\n\n' +
+    '可能需要幾分鐘，確定開始嗎？'
+  );
+  if (!confirmed) return;
+
+  // 讀取所有有 base64 圖片的日記
+  const { data: allEntries, error } = await sb
+    .from('diary_entries')
+    .select('id, date, content_html')
+    .eq('user_id', currentUser.id)
+    .like('content_html', '%data:image%');
+
+  if (error) { alert('讀取失敗：' + error.message); return; }
+  if (!allEntries || allEntries.length === 0) {
+    alert('✅ 所有日記已經沒有 base64 圖片，不需要搬移！');
+    return;
+  }
+
+  let totalDays = allEntries.length;
+  let totalImgs = 0, okImgs = 0, failImgs = 0;
+
+  for (let i = 0; i < allEntries.length; i++) {
+    const entry = allEntries[i];
+    const progress = `${i+1}/${totalDays}`;
+
+    // 建立臨時 DOM 解析 HTML
+    const tmp = document.createElement('div');
+    tmp.innerHTML = entry.content_html;
+    const imgs = tmp.querySelectorAll('img[src^="data:"]');
+    if (!imgs.length) continue;
+
+    console.log(`📅 處理 ${entry.date}（${progress}）：${imgs.length} 張圖片`);
+
+    for (let img of imgs) {
+      totalImgs++;
+      try {
+        const cloudUrl = await uploadImage(img.src);
+        img.src = cloudUrl;
+        okImgs++;
+        console.log(`  ✅ 上傳成功`);
+      } catch(e) {
+        failImgs++;
+        console.warn(`  ❌ 上傳失敗：${e.message}`);
+      }
+    }
+
+    // 更新到 Supabase
+    const { error: updateErr } = await sb
+      .from('diary_entries')
+      .update({ content_html: tmp.innerHTML })
+      .eq('id', entry.id);
+
+    if (updateErr) {
+      console.warn(`❌ ${entry.date} 更新失敗：${updateErr.message}`);
+    } else {
+      // 更新本地 entries 快取
+      if (entries[entry.date]) {
+        entries[entry.date].content_html = tmp.innerHTML;
+      }
+    }
+  }
+
+  alert(
+    `✅ 搬移完成！\n\n` +
+    `處理日記：${totalDays} 篇\n` +
+    `成功上傳：${okImgs} 張\n` +
+    `失敗：${failImgs} 張\n\n` +
+    `Supabase 空間已大量釋放！`
+  );
+}
+
+// ===== State =====
+let currentUser = null;
+let viewYear  = new Date().getFullYear();
+let viewMonth = new Date().getMonth(); // 0-indexed
+let entries   = {}; // "YYYY-MM-DD" -> {id, content_html, date}
+let editingDate = null;
+let diaryCamStream = null;
+let diaryCropper   = null;
+let savedRange     = null;
+let pendingUploads = 0; // 追蹤還在上傳中的圖片數量
+
+const WD = ['日','一','二','三','四','五','六'];
+
+function toKey(y, m, d) {
+  return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+function todayKey() {
+  let n = new Date();
+  return toKey(n.getFullYear(), n.getMonth(), n.getDate());
+}
+
+// ===== Auth =====
+function showReg()   { document.getElementById('loginForm').style.display='none';  document.getElementById('regForm').style.display='block'; }
+function showLogin() { document.getElementById('regForm').style.display='none';    document.getElementById('loginForm').style.display='block'; }
+
+async function doLogin() {
+  let email = document.getElementById('loginEmail').value.trim();
+  let pwd   = document.getElementById('loginPassword').value;
+  let msg   = document.getElementById('loginMsg');
+  msg.className='msg'; msg.innerText='';
+  if (!email||!pwd) { msg.className='msg err'; msg.innerText='請填寫郵箱和密碼'; return; }
+  const { error } = await sb.auth.signInWithPassword({ email, password: pwd });
+  if (error) { msg.className='msg err'; msg.innerText='登入失敗：'+error.message; }
+  else location.reload();
+}
+
+async function doRegister() {
+  let email = document.getElementById('regEmail').value.trim();
+  let pwd   = document.getElementById('regPassword').value;
+  let msg   = document.getElementById('regMsg');
+  msg.className='msg'; msg.innerText='';
+  if (!email||!pwd) { msg.className='msg err'; msg.innerText='請填寫郵箱和密碼'; return; }
+  if (pwd.length<6) { msg.className='msg err'; msg.innerText='密碼至少6碼'; return; }
+  const { error } = await sb.auth.signUp({ email, password: pwd });
+  if (error) { msg.className='msg err'; msg.innerText='註冊失敗：'+error.message; }
+  else { msg.className='msg ok'; msg.innerText='✅ 註冊成功！請直接登入'; }
+}
+
+async function doSignOut() { await sb.auth.signOut(); location.reload(); }
+
+// ===== Boot =====
+async function boot() {
+  const { data: { user } } = await sb.auth.getUser();
+  if (user) {
+    currentUser = user;
+    document.getElementById('loginPage').classList.remove('active');
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('mainApp').style.display   = 'flex';
+    document.getElementById('homeEmail').innerText = user.email;
+    await loadEntries();
+    renderCalendar();
+    renderRecent();
+    buildDatePickerSelects();
+  }
+}
+boot();
+
+// ===== Load entries =====
+async function loadEntries() {
+  const { data, error } = await sb.from('diary_entries')
+    .select('id, date, content_html')
+    .eq('user_id', currentUser.id);
+  if (!error && data) {
+    entries = {};
+    data.forEach(e => { entries[e.date] = e; });
+  }
+}
+
+// ===== 快速跳轉功能 =====
+function openJump(){
+  const sel = document.getElementById('jumpYearSel');
+  sel.innerHTML = '';
+  const thisYear = new Date().getFullYear();
+  for(let y = thisYear + 1; y >= 1900; y--){
+    const opt = document.createElement('option');
+    opt.value = y; opt.text = y + '年（民國' + (y-1911) + '）';
+    if(y === viewYear) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  document.getElementById('jumpMonthSel').value = viewMonth + 1;
+  const el = document.getElementById('jumpOverlay');
+  el.style.display = 'flex';
+}
+function closeJump(){
+  document.getElementById('jumpOverlay').style.display = 'none';
+}
+function doJump(){
+  const y = parseInt(document.getElementById('jumpYearSel').value);
+  const m = parseInt(document.getElementById('jumpMonthSel').value);
+  viewYear = y; viewMonth = m - 1;
+  renderCalendar();
+  closeJump();
+}
+function jumpToYear(y){
+  document.getElementById('jumpYearSel').value = y;
+}
+
+// ===== Calendar =====
+function changeMonth(delta) {
+  viewMonth += delta;
+  if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+  if (viewMonth < 0)  { viewMonth = 11; viewYear--; }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  document.getElementById('monthLabel').innerText = `${viewYear}年 ${viewMonth+1}月`;
+  // day names
+  document.getElementById('calDayNames').innerHTML =
+    ['日','一','二','三','四','五','六'].map(d =>
+      `<div class="cal-day-name">${d}</div>`).join('');
+  // days
+  let firstDay    = new Date(viewYear, viewMonth, 1).getDay();
+  let daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+  let today       = todayKey();
+  let html = '';
+  for (let i=0; i<firstDay; i++) html += `<div class="cal-day empty"></div>`;
+  for (let d=1; d<=daysInMonth; d++) {
+    let key = toKey(viewYear, viewMonth, d);
+    let cls = 'cal-day';
+    if (key === today)    cls += ' today';
+    if (entries[key])     cls += ' has-entry';
+    html += `<div class="${cls}" onclick="openEditorForDate('${key}')">${d}</div>`;
+  }
+  document.getElementById('calGrid').innerHTML = html;
+}
+
+function renderRecent() {
+  let sorted = Object.keys(entries).sort((a,b) => b.localeCompare(a)).slice(0,7);
+  let list = document.getElementById('recentList');
+  if (!sorted.length) {
+    list.innerHTML = `<div class="empty-hint">📭 還沒有日記<br>點日曆上的日期，或點下方「今天」開始寫吧 ✨</div>`;
+    return;
+  }
+  list.innerHTML = sorted.map(key => {
+    let e = entries[key];
+    let [y, m, d] = key.split('-').map(Number);
+    let wd = WD[new Date(y, m-1, d).getDay()];
+    let tmp = document.createElement('div');
+    tmp.innerHTML = e.content_html || '';
+    let textPrev = tmp.innerText.replace(/\s+/g,' ').trim().slice(0, 40) || '（還沒有文字）';
+    let hasPhoto = /<img/i.test(e.content_html || '');
+    return `
+      <div class="entry-card" onclick="openEditorForDate('${key}')">
+        <div class="entry-date-badge">
+          <div class="entry-date-day">${d}</div>
+          <div class="entry-date-wd">週${wd}</div>
+        </div>
+        <div class="entry-preview">
+          <div class="entry-preview-title">${y}年${m}月${d}日</div>
+          <div class="entry-preview-text">${textPrev}</div>
+          ${hasPhoto ? `<div class="entry-has-photo">📷 含有照片</div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ===== Navigation =====
+function navTo(el, pageId) {
+  document.querySelectorAll('#mainApp .nav-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('#mainApp .page').forEach(p => p.classList.remove('active'));
+  document.getElementById(pageId).classList.add('active');
+}
+
+function openToday() { openEditorForDate(todayKey()); }
+
+function openEditorForDate(dateKey) {
+  editingDate = dateKey;
+  let [y, m, d] = dateKey.split('-').map(Number);
+  let wd = WD[new Date(y, m-1, d).getDay()];
+  document.getElementById('editorDateLabel').innerText = `${y}年${m}月${d}日`;
+  document.getElementById('editorWeekday').innerText   = `星期${wd}`;
+  let editor = document.getElementById('diaryEditor');
+  editor.innerHTML = entries[dateKey] ? (entries[dateKey].content_html || '') : '';
+  document.querySelectorAll('#mainApp .page').forEach(p => p.classList.remove('active'));
+  document.getElementById('editorPage').classList.add('active');
+  setTimeout(() => editor.focus(), 250);
+  // 初始化貼上攔截（自動上傳貼上的圖片到 R2）
+  setTimeout(initPasteInterceptor, 300);
+}
+
+function backHome() {
+  document.querySelectorAll('#mainApp .page').forEach(p => p.classList.remove('active'));
+  document.getElementById('homePage').classList.add('active');
+  renderCalendar();
+  renderRecent();
+}
+
+// ===== Save / Delete =====
+async function saveEntry() {
+  if (!editingDate || !currentUser) return;
+  let btn = document.getElementById('saveBtn');
+
+  // 如果本來有舊資料，問使用者確定要覆蓋嗎
+  if (entries[editingDate]) {
+    showConfirm(
+      '⚠️ 覆蓋確認',
+      '這一天已有日記內容。\n確定要用新內容覆蓋嗎？',
+      async () => { await doSave(); }
+    );
+    return;
+  }
+
+  await doSave();
+}
+
+async function doSave() {
+  let btn = document.getElementById('saveBtn');
+
+  // 如果還有圖片在上傳中，先等待
+  if (pendingUploads > 0) {
+    btn.innerText = `⏳ 圖片上傳中 (${pendingUploads} 張)...`;
+    btn.disabled = true;
+    // 每 500ms 檢查一次，最多等 60 秒
+    let waited = 0;
+    while (pendingUploads > 0 && waited < 120) {
+      await new Promise(r => setTimeout(r, 500));
+      waited++;
+      btn.innerText = `⏳ 圖片上傳中 (${pendingUploads} 張)...`;
+    }
+  }
+
+  btn.innerText = '💾 儲存中...'; btn.disabled = true;
+
+  let html = document.getElementById('diaryEditor').innerHTML;
+  let existing = entries[editingDate];
+  let saveError = null;
+
+  if (existing) {
+    const { error } = await sb.from('diary_entries')
+      .update({ content_html: html })
+      .eq('id', existing.id);
+    if (!error) entries[editingDate].content_html = html;
+    saveError = error;
+  } else {
+    const { data, error } = await sb.from('diary_entries')
+      .insert({ user_id: currentUser.id, date: editingDate, content_html: html })
+      .select().single();
+    if (!error && data) entries[editingDate] = data;
+    saveError = error;
+  }
+
+  btn.disabled = false;
+  if (saveError) {
+    btn.innerText = '❌ 儲存失敗，請重試';
+    btn.style.background = 'linear-gradient(135deg,#e74c3c,#c0392b)';
+    setTimeout(() => { btn.innerText = '💾 儲存'; btn.style.background = ''; }, 3000);
+    alert('❌ 儲存失敗：' + saveError.message + '\n請再按一次儲存按鈕。');
+  } else {
+    btn.innerText = '✅ 已儲存';
+    btn.style.background = 'linear-gradient(135deg,#27ae60,#1e8449)';
+    setTimeout(() => { btn.innerText = '💾 儲存'; btn.style.background = ''; }, 2000);
+  }
+}
+
+async function deleteCurrentEntry() {
+  if (!editingDate) return;
+  if (!entries[editingDate]) {
+    // 本來就沒有資料，直接清空編輯器
+    document.getElementById('diaryEditor').innerHTML = '';
+    return;
+  }
+  showConfirm(
+    '🗑 刪除確認',
+    '確定要刪除這篇日記嗎？\n此操作無法還原！',
+    async () => {
+      let existing = entries[editingDate];
+      await sb.from('diary_entries').delete().eq('id', existing.id);
+      delete entries[editingDate];
+      document.getElementById('diaryEditor').innerHTML = '';
+      backHome();
+    },
+    true // 刪除用紅色按鈕
+  );
+}
+
+// ===== Date Picker =====
+function buildDatePickerSelects() {
+  let now = new Date();
+  let ysel = document.getElementById('dpYear');
+  ysel.innerHTML = '';
+  for (let y = now.getFullYear()+1; y >= 2000; y--) {
+    let o = document.createElement('option');
+    o.value = y; o.innerText = y + '年';
+    if (y === now.getFullYear()) o.selected = true;
+    ysel.appendChild(o);
+  }
+  let msel = document.getElementById('dpMonth');
+  msel.innerHTML = '';
+  for (let m = 1; m <= 12; m++) {
+    let o = document.createElement('option');
+    o.value = m; o.innerText = m + '月';
+    if (m === now.getMonth()+1) o.selected = true;
+    msel.appendChild(o);
+  }
+  updateDpDays();
+  let dsel = document.getElementById('dpDay');
+  if (dsel.options[now.getDate()-1]) dsel.options[now.getDate()-1].selected = true;
+}
+
+function updateDpDays() {
+  let y = +document.getElementById('dpYear').value;
+  let m = +document.getElementById('dpMonth').value;
+  let days = new Date(y, m, 0).getDate();
+  let dsel = document.getElementById('dpDay');
+  let prev = dsel.value || 1;
+  dsel.innerHTML = '';
+  for (let d=1; d<=days; d++) {
+    let o = document.createElement('option');
+    o.value = d; o.innerText = d + '日';
+    dsel.appendChild(o);
+  }
+  if (prev <= days) dsel.value = prev;
+}
+
+function openDatePicker() {
+  document.getElementById('datePickerModal').classList.add('active');
+}
+function closeDatePickerBg(e) {
+  if (e.target === document.getElementById('datePickerModal'))
+    document.getElementById('datePickerModal').classList.remove('active');
+}
+function goToPickedDate() {
+  let y = +document.getElementById('dpYear').value;
+  let m = +document.getElementById('dpMonth').value;
+  let d = +document.getElementById('dpDay').value;
+  document.getElementById('datePickerModal').classList.remove('active');
+  viewYear = y; viewMonth = m-1;
+  openEditorForDate(toKey(y, m-1, d));
+}
+
+// ===== Camera helpers =====
+function isAndroidWebView() {
+  let ua = navigator.userAgent || '';
+  return /Android/.test(ua) && (/wv/.test(ua) || (!/Chrome\//.test(ua) && /Version\//.test(ua)));
+}
+function canUseGetUserMedia() {
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) &&
+    (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+}
+
+function saveEditorCursor() {
+  let sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) savedRange = sel.getRangeAt(0).cloneRange();
+}
+function restoreEditorCursor() {
+  let editor = document.getElementById('diaryEditor');
+  editor.focus();
+  if (savedRange) {
+    let sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(savedRange);
+  }
+}
+
+// ===== Camera =====
+function diaryCamera() {
+  saveEditorCursor();
+  if (isAndroidWebView() || !canUseGetUserMedia()) { useDiaryCaptureInput(); return; }
+  document.getElementById('fullCamera').classList.add('active');
+  if (diaryCamStream) stopDiaryCam();
+  navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+    audio: false
+  }).then(s => {
+    diaryCamStream = s;
+    document.getElementById('diaryCamVideo').srcObject = s;
+  }).catch(() => { closeDiaryCam(); useDiaryCaptureInput(); });
+}
+
+function diaryAlbum() {
+  saveEditorCursor();
+  let old = document.getElementById('_diaryAlbum');
+  if (old) old.remove();
+  let inp = document.createElement('input');
+  inp.id = '_diaryAlbum'; inp.type = 'file'; inp.accept = 'image/*';
+  inp.style.cssText = 'position:fixed;top:-9999px;opacity:0';
+  document.body.appendChild(inp);
+  inp.onchange = e => {
+    if (e.target.files && e.target.files[0]) {
+      let r = new FileReader();
+      r.onload = ev => showDiaryCropUI(ev.target.result);
+      r.readAsDataURL(e.target.files[0]);
+    }
+    setTimeout(() => { if (inp.parentNode) inp.remove(); }, 500);
+  };
+  setTimeout(() => inp.click(), 100);
+}
+
+function useDiaryCaptureInput() {
+  let old = document.getElementById('_diaryCam');
+  if (old) old.remove();
+  let inp = document.createElement('input');
+  inp.id = '_diaryCam'; inp.type = 'file'; inp.accept = 'image/*';
+  inp.setAttribute('capture', 'environment');
+  inp.style.cssText = 'position:fixed;top:-9999px;opacity:0';
+  document.body.appendChild(inp);
+  inp.onchange = e => {
+    if (e.target.files && e.target.files[0]) {
+      let r = new FileReader();
+      r.onload = ev => showDiaryCropUI(ev.target.result);
+      r.readAsDataURL(e.target.files[0]);
+    }
+    setTimeout(() => { if (inp.parentNode) inp.remove(); }, 500);
+  };
+  setTimeout(() => inp.click(), 100);
+}
+
+function closeDiaryCam() {
+  document.getElementById('fullCamera').classList.remove('active');
+  stopDiaryCam();
+}
+function stopDiaryCam() {
+  if (diaryCamStream) { diaryCamStream.getTracks().forEach(t => t.stop()); diaryCamStream = null; }
+}
+
+function diaryCaptureAndCrop() {
+  let video = document.getElementById('diaryCamVideo');
+  if (!video.videoWidth) return;
+  let canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  closeDiaryCam();
+  showDiaryCropUI(canvas.toDataURL('image/jpeg', 0.9));
+}
+
+// ===== Crop =====
+function showDiaryCropUI(src) {
+  let layer = document.getElementById('cropLayer');
+  let img   = document.getElementById('cropImage');
+  img.src = src;
+  layer.classList.add('active');
+  if (diaryCropper) diaryCropper.destroy();
+  diaryCropper = new Cropper(img, {
+    aspectRatio: NaN, viewMode: 1, dragMode: 'move', autoCropArea: 0.85,
+    restore: false, modal: true, guides: true, center: false, highlight: false,
+    cropBoxMovable: true, cropBoxResizable: true, toggleDragModeOnDblclick: false
+  });
+}
+
+async function diaryCropConfirm() {
+  if (diaryCropper) {
+    let canvas = diaryCropper.getCroppedCanvas({ maxWidth: 1600, maxHeight: 1600 });
+    if (canvas) {
+      let dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+
+      // 先插入暫時的 loading 佔位圖
+      let placeholder = document.createElement('div');
+      placeholder.style.cssText = 'text-align:center;padding:20px;background:#f0f0f0;border-radius:12px;margin:10px 0;color:#888;font-size:14px;';
+      placeholder.innerText = '⏳ 圖片上傳中...';
+
+      // 找到游標位置插入
+      let editor = document.getElementById('diaryEditor');
+      let sel = window.getSelection();
+      if (sel && sel.rangeCount > 0 && savedRange) {
+        restoreEditorCursor();
+        let range = sel.getRangeAt(0);
+        range.insertNode(placeholder);
+        savedRange = null;
+      } else {
+        editor.appendChild(placeholder);
+      }
+
+      // 直接上傳到 R2（不先插入 base64）
+      try {
+        const cloudUrl = await uploadImage(dataUrl);
+        // 上傳成功：把 placeholder 換成真實圖片
+        let img = document.createElement('img');
+        img.src = cloudUrl;
+        img.style.cssText = 'max-width:100%;border-radius:14px;margin:10px 0;display:block;';
+        img.onclick = () => { if(confirm('移除這張照片？')) img.remove(); };
+        placeholder.replaceWith(img);
+        // 換行
+        let br = document.createElement('br');
+        img.after(br);
+      } catch(e) {
+        // 上傳失敗：移除 placeholder，顯示錯誤
+        placeholder.remove();
+        alert('❌ 圖片上傳到 R2 失敗：' + e.message + '\n\n請確認網路連線，再重新拍照插入。');
+      }
+    }
+  }
+  diaryCropper && diaryCropper.destroy();
+  diaryCropper = null;
+  document.getElementById('cropLayer').classList.remove('active');
+}
+
+function diaryCropCancel() {
+  diaryCropper && diaryCropper.destroy();
+  diaryCropper = null;
+  document.getElementById('cropLayer').classList.remove('active');
+}
+
+// ===== 攔截貼上事件，支援：1) 圖片檔案 2) LINE 貼圖/網頁圖片（HTML格式）=====
+function initPasteInterceptor() {
+
+  if (window._pasteInterceptorInstalled) return;
+  window._pasteInterceptorInstalled = true;
+
+  const editor = document.getElementById('diaryEditor');
+  if (!editor) return;
+
+  editor.addEventListener('paste', async function(e) {
+    const cd = e.clipboardData;
+    if (!cd) return;
+
+    // ── 優先處理：直接貼上圖片檔案（截圖、相簿拖入）──
+    const items = cd.items;
+    if (items) {
+      for (let item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (!file) continue;
+          const reader = new FileReader();
+          reader.onload = async (ev) => {
+            const dataUrl = ev.target.result;
+            const placeholder = document.createElement('div');
+            placeholder.style.cssText = 'text-align:center;padding:16px;background:#f0f4ff;border-radius:12px;margin:8px 0;color:#666;font-size:14px;border:1px dashed #aab;';
+            placeholder.innerText = '⏳ 圖片上傳到 R2 中...';
+            editor.appendChild(placeholder);
+            try {
+              const cloudUrl = await uploadImage(dataUrl);
+const img = document.createElement('img');
+img.src = cloudUrl;
+img.style.cssText =
+'max-width:100%;border-radius:14px;margin:10px 0;display:block;';
+img.onclick = () => {
+if (confirm('移除這張照片？')) img.remove();
+};
+// 移除提示框
+placeholder.remove();
+// 插入到目前游標位置
+editor.focus();
+const sel = window.getSelection();
+if (sel && sel.rangeCount > 0) {
+const range = sel.getRangeAt(0);
+range.insertNode(img);
+const br = document.createElement('br');
+img.after(br);
+range.setStartAfter(br);
+range.collapse(true);
+sel.removeAllRanges();
+sel.addRange(range);
+} else {
+editor.appendChild(img);
+editor.appendChild(document.createElement('br'));
+}
+
+            } catch(err) {
+              placeholder.remove();
+              alert('❌ 貼上圖片上傳失敗：' + err.message);
+            }
+          };
+          reader.readAsDataURL(file);
+          return;
+        }
+      }
+    }
+
+    // ── 次要處理：HTML 格式（LINE 貼圖、網頁複製的圖片）──
+    const html = cd.getData('text/html');
+    if (html) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      const imgs = tmp.querySelectorAll('img');
+      if (imgs.length > 0) {
+        e.preventDefault();
+        for (let srcImg of imgs) {
+          const src = srcImg.src || srcImg.getAttribute('src') || '';
+          if (!src) continue;
+
+          const placeholder = document.createElement('div');
+          placeholder.style.cssText = 'text-align:center;padding:16px;background:#fff8ec;border-radius:12px;margin:8px 0;color:#a07050;font-size:14px;border:1px dashed #e8c090;';
+          placeholder.innerText = '⏳ LINE 貼圖下載上傳中...';
+          editor.appendChild(placeholder);
+
+          ;(async () => {
+            try {
+              let dataUrl;
+              if (src.startsWith('data:')) {
+                dataUrl = src;
+              } else {
+                const resp = await fetch(src);
+                if (!resp.ok) throw new Error('圖片下載失敗 ' + resp.status);
+                const blob = await resp.blob();
+                dataUrl = await new Promise((res, rej) => {
+                  const r = new FileReader();
+                  r.onload = () => res(r.result);
+                  r.onerror = rej;
+                  r.readAsDataURL(blob);
+                });
+              }
+              const cloudUrl = await uploadImage(dataUrl);
+const img = document.createElement('img');
+img.src = cloudUrl;
+img.style.cssText =
+'max-width:100%;border-radius:14px;margin:10px 0;display:block;';
+img.onclick = () => {
+if (confirm('移除這張照片？')) img.remove();
+};
+// 移除提示框
+placeholder.remove();
+// 插入到目前游標位置
+editor.focus();
+const sel = window.getSelection();
+if (sel && sel.rangeCount > 0) {
+const range = sel.getRangeAt(0);
+range.insertNode(img);
+const br = document.createElement('br');
+img.after(br);
+range.setStartAfter(br);
+range.collapse(true);
+sel.removeAllRanges();
+sel.addRange(range);
+} else {
+editor.appendChild(img);
+editor.appendChild(document.createElement('br'));
+}
+            } catch(err) {
+              // fetch 被 CORS 擋住時，直接插入原始網址
+              console.warn('圖片上傳失敗，改用原始網址：', err.message);
+              const img = document.createElement('img');
+              img.src = src;
+              img.style.cssText = 'max-width:100%;border-radius:14px;margin:10px 0;display:block;';
+              img.onclick = () => { if(confirm('移除這張照片？')) img.remove(); };
+              placeholder.replaceWith(img);
+              editor.appendChild(document.createElement('br'));
+            }
+          })();
+        }
+        return;
+      }
+    }
+  });
+}
+
+function insertImageAtCursor(dataUrl) {
+  let editor = document.getElementById('diaryEditor');
+  let img = document.createElement('img');
+  img.src = dataUrl;
+  img.style.cssText = 'max-width:100%;border-radius:16px;margin:10px 0;display:block';
+  // tap to remove
+  img.onclick = () => { if (confirm('移除這張照片？')) img.remove(); };
+
+  if (savedRange) {
+    restoreEditorCursor();
+    let sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      let range = sel.getRangeAt(0);
+      range.deleteContents();
+      let br = document.createElement('br');
+      let frag = document.createDocumentFragment();
+      frag.appendChild(img);
+      frag.appendChild(br);
+      range.insertNode(frag);
+      let newRange = document.createRange();
+      newRange.setStartAfter(br);
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+      savedRange = null;
+      return img; // ← 回傳 img 元素，供 Cloudinary 替換用
+    }
+  }
+  // fallback: append
+  editor.appendChild(img);
+  let br = document.createElement('br');
+  editor.appendChild(br);
+  return img; // ← 回傳 img 元素，供 Cloudinary 替換用
+}
+</script>
+<!-- 快速跳轉彈窗 -->
+<div id="jumpOverlay" onclick="closeJump()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;align-items:flex-end;justify-content:center;">
+  <div onclick="event.stopPropagation()" style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:480px;padding:24px 20px 40px;">
+    <div style="text-align:center;font-size:16px;font-weight:700;color:#333;margin-bottom:18px;">📅 快速跳轉年月</div>
+    <div style="display:flex;gap:10px;margin-bottom:18px;">
+      <select id="jumpYearSel" style="flex:2;padding:12px;border:1.5px solid #e0d5c0;border-radius:12px;font-size:16px;color:#333;background:#fff;outline:none;"></select>
+      <select id="jumpMonthSel" style="flex:1;padding:12px;border:1.5px solid #e0d5c0;border-radius:12px;font-size:16px;color:#333;background:#fff;outline:none;">
+        <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+        <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+        <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+        <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <button onclick="jumpToYear(1987)" style="padding:10px;border:1.5px solid #e8784a;background:#fff;color:#e8784a;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">1987年（民國76）</button>
+      <button onclick="jumpToYear(1990)" style="padding:10px;border:1.5px solid #e8784a;background:#fff;color:#e8784a;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">1990年（民國79）</button>
+      <button onclick="jumpToYear(2000)" style="padding:10px;border:1.5px solid #e8784a;background:#fff;color:#e8784a;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">2000年（民國89）</button>
+      <button onclick="jumpToYear(2010)" style="padding:10px;border:1.5px solid #e8784a;background:#fff;color:#e8784a;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">2010年（民國99）</button>
+    </div>
+    <button onclick="doJump()" style="width:100%;padding:14px;background:#e8784a;color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;">前往</button>
+    <button onclick="closeJump()" style="width:100%;padding:12px;background:#f0f0f0;color:#666;border:none;border-radius:14px;font-size:15px;cursor:pointer;margin-top:8px;">取消</button>
+  </div>
+</div>
+<!-- 自訂確認視窗 -->
+<div id="confirmOverlay" onclick="closeConfirm()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+  <div onclick="event.stopPropagation()" style="background:#fff;border-radius:22px;padding:28px 24px;width:100%;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div id="confirmIcon" style="font-size:36px;text-align:center;margin-bottom:12px;"></div>
+    <div id="confirmTitle" style="font-size:17px;font-weight:700;color:#333;text-align:center;margin-bottom:8px;"></div>
+    <div id="confirmMsg" style="font-size:14px;color:#666;text-align:center;line-height:1.6;margin-bottom:22px;white-space:pre-line;"></div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="closeConfirm()" style="flex:1;padding:13px;border:1.5px solid #ddd;background:#f5f5f5;color:#555;border-radius:13px;font-size:15px;font-weight:600;cursor:pointer;">取消</button>
+      <button id="confirmYesBtn" style="flex:1;padding:13px;border:none;color:#fff;border-radius:13px;font-size:15px;font-weight:700;cursor:pointer;">確定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let _confirmCallback = null;
+
+function showConfirm(title, msg, onYes, isDanger = false) {
+  // 拆出 emoji 當 icon
+  let icon = isDanger ? '🗑️' : '💾';
+  document.getElementById('confirmIcon').innerText = icon;
+  document.getElementById('confirmTitle').innerText = title;
+  document.getElementById('confirmMsg').innerText = msg;
+  let yesBtn = document.getElementById('confirmYesBtn');
+  yesBtn.style.background = isDanger
+    ? 'linear-gradient(135deg,#e74c3c,#c0392b)'
+    : 'linear-gradient(135deg,#e8784a,#c44a1e)';
+  yesBtn.innerText = isDanger ? '確定刪除' : '確定覆蓋';
+  _confirmCallback = onYes;
+  document.getElementById('confirmOverlay').style.display = 'flex';
+}
+
+function closeConfirm() {
+  document.getElementById('confirmOverlay').style.display = 'none';
+  _confirmCallback = null;
+}
+
+async function confirmYes() {
+  document.getElementById('confirmOverlay').style.display = 'none';
+  if (_confirmCallback) {
+    await _confirmCallback();
+    _confirmCallback = null;
+  }
+}
+document.getElementById('confirmYesBtn').onclick = confirmYes;
+</script>
+</body>
+</html>
